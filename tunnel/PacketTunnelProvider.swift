@@ -29,12 +29,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         NSLog("setPassword")
         SVCrypto.setPassword(conf["password"] as! String)
         self.recreateUDP()
-        self.updateNetwork()
     }
     
     func recreateUDP() {
-        self.reasserting = true
         if session != nil {
+            self.reasserting = true
             self.session = nil
         }
         if let serverAddress = self.protocolConfiguration.serverAddress {
@@ -45,11 +44,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 self.reasserting = false
             }
         }
-    }
-    
-    func log(data: String) {
-        self.session?.writeDatagram(data.dataUsingEncoding(NSUTF8StringEncoding)!, completionHandler: { (error: NSError?) -> Void in
-        })
     }
     
     func updateNetwork() {
@@ -101,8 +95,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 self.session?.writeDatagram(SVCrypto.encryptWithData(packet, userToken: self.userToken), completionHandler: { (error: NSError?) -> Void in
                     if let error = error {
                         NSLog("%@", error)
-                        self.recreateUDP()
-                        return
+//                        self.recreateUDP()
+//                        return
                     }
                 })
             }
@@ -139,7 +133,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     
     override func stopTunnelWithReason(reason: NEProviderStopReason, completionHandler: () -> Void) {
         // Add code here to start the process of stopping the tunnel
-        self.log("stopTunnelWithReason")
+        NSLog("stopTunnelWithReason")
         session?.cancel()
         completionHandler()
         super.stopTunnelWithReason(reason, completionHandler: completionHandler)

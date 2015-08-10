@@ -59,23 +59,31 @@ class RouteManager: NSObject {
     func parseCHNRoutes(IPv4Settings: NEIPv4Settings) {
         NSLog("parsing chnroutes")
         var routes = [NEIPv4Route]()
-        let chnroutesPath = NSBundle.mainBundle().pathForResource("chnroutes", ofType: "txt")
+        
+        // This is a trick to force DNS to be resolved on TUN interface
+        routes.append(NEIPv4Route.defaultRoute())
+        let chnroutesPath = NSBundle.mainBundle().pathForResource("foreign", ofType: "txt")
         do {
+            var i = 0
             let content = try String(contentsOfFile: chnroutesPath!)
             let lines = content.componentsSeparatedByString("\n")
             for line in lines {
+                i++
                 let parts = line.componentsSeparatedByString("/")
                 if parts.count == 2 {
                     let address = parts[0]
                     let subnet = self.cidrToSubnetMask[parts[1]]
-                    // NSLog("adding route %@", address)
+//                     NSLog("adding route %@", address)
                     routes.append(NEIPv4Route(destinationAddress: address, subnetMask: subnet!))
                 }
             }
         } catch {
             NSLog("$@", String(error))
         }
-        IPv4Settings.includedRoutes = [NEIPv4Route.defaultRoute()]
-        IPv4Settings.excludedRoutes = routes
+        IPv4Settings.includedRoutes = routes
+        
+        // This is a trick to force DNS to be resolved on TUN interface
+        IPv4Settings.excludedRoutes = [NEIPv4Route(destinationAddress: "0.0.0.0", subnetMask: "128.0.0.0"), NEIPv4Route(destinationAddress: "128.0.0.0", subnetMask: "128.0.0.0")]
+        NSLog("Done")
     }
 }
