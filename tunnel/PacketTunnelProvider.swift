@@ -67,6 +67,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             NSLog("using DNS")
             newSettings.DNSSettings = NEDNSSettings(servers: (conf["dns"] as! String).componentsSeparatedByString(","))
         }
+        // add server ip to exclude list
+        newSettings.IPv4Settings?.excludedRoutes?.append(NEIPv4Route(destinationAddress: conf["server"] as! String, subnetMask: "255.255.255.255"))
+        
         NSLog("setPassword")
         SVCrypto.setPassword(conf["password"] as! String)
         NSLog("setTunnelNetworkSettings")
