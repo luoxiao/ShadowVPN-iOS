@@ -11,5 +11,6 @@
 
 #import "SVCrypto.h"
 #import "ChinaDNSRunner.h"
+#import "UDPSocket.h"
 
 #endif /* tunnel_Bridging_Header_h */

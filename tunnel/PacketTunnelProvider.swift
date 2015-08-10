@@ -9,13 +9,13 @@
 import NetworkExtension
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
-    var session: NWUDPSession? = nil
     var conf = [String: AnyObject]()
     var pendingStartCompletion: (NSError? -> Void)?
     var userToken: NSData?
     var chinaDNS: ChinaDNSRunner?
     var routeManager: RouteManager?
     var queue: dispatch_queue_t?
+    var socket: UDPSocket?
     
     override func startTunnelWithOptions(options: [String : NSObject]?, completionHandler: (NSError?) -> Void) {
         queue = dispatch_queue_create("shadowvpn.vpn", DISPATCH_QUEUE_SERIAL)
@@ -27,27 +27,24 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 userToken = NSData.fromHexString(userTokenString)
             }
         }
-        self.recreateUDP()
+        self.createUDP()
         self.updateNetwork()
     }
     
-    func recreateUDP() {
-        if let session = session {
-            session.cancel()
-        }
-        if let serverAddress = self.protocolConfiguration.serverAddress {
-            if let port = conf["port"] as? String {
-                NSLog("recreateUDP")
-                self.session = self.createUDPSessionToEndpoint(NWHostEndpoint(hostname: serverAddress, port: port), fromEndpoint: nil)
+    func createUDP() {
+        self.socket = UDPSocket(IP: conf["server"] as! String, port: conf["port"] as! String)
+        dispatch_async(queue!) { () -> Void in
+            while true {
+                NSLog("UDP queue while")
+                if let data = self.socket?.recv() {
+                    NSLog("UDP: %d", data.length)
+                    let decrypted = SVCrypto.decryptWithData(data, userToken: self.userToken)
+                    self.packetFlow.writePackets([decrypted], withProtocols: [2])
+                } else {
+                    sleep(1)
+                }
             }
-        } else {
-            self.pendingStartCompletion!(NSError(domain:"PacketTunnelProviderDomain", code:-1, userInfo:[NSLocalizedDescriptionKey:"Configuration is missing serverAddress"]))
         }
-    }
-    
-    func log(data: String) {
-        self.session?.writeDatagram(data.dataUsingEncoding(NSUTF8StringEncoding)!, completionHandler: { (error: NSError?) -> Void in
-        })
     }
     
     func updateNetwork() {
@@ -76,8 +73,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         self.setTunnelNetworkSettings(newSettings) { (error: NSError?) -> Void in
             NSLog("readPacketsFromTUN")
             self.readPacketsFromTUN()
-            self.readPacketsFromUDP()
-            NSLog("readPacketsFromUDP")
             if let completionHandler = self.pendingStartCompletion {
                 // send an packet
                 //        self.log("completion")
@@ -95,46 +90,18 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     func readPacketsFromTUN() {
         self.packetFlow.readPacketsWithCompletionHandler {
             packets, protocols in
-            //      self.log("readPacketsWithCompletionHandler")
-            //      for p in protocols {
-            //        self.log("protocol: " + p.stringValue)
-            //      }
             for packet in packets {
-//                NSLog("TUN: %d", packet.length)
-                self.session?.writeDatagram(SVCrypto.encryptWithData(packet, userToken: self.userToken), completionHandler: { (error: NSError?) -> Void in
-                    if let error = error {
-                        NSLog("%@", error)
-                        self.recreateUDP()
-                    }
-                })
+                NSLog("TUN: %d", packet.length)
+                self.socket?.sendData(SVCrypto.encryptWithData(packet, userToken: self.userToken))
             }
             self.readPacketsFromTUN()
         }
         
     }
     
-    func readPacketsFromUDP() {
-        session?.setReadHandler({ (newPackets: [NSData]?, error: NSError?) -> Void in
-            //      self.log("readPacketsFromUDP")
-            guard let packets = newPackets else { return }
-            var protocols = [NSNumber]()
-            var decryptedPackets = [NSData]()
-            for packet in packets {
-//                NSLog("UDP: %d", packet.length)
-                // currently IPv4 only
-                let decrypted = SVCrypto.decryptWithData(packet, userToken: self.userToken)
-//                NSLog("write to TUN: %d", decrypted.length)
-                decryptedPackets.append(decrypted)
-                protocols.append(2)
-            }
-            self.packetFlow.writePackets(decryptedPackets, withProtocols: protocols)
-            }, maxDatagrams: 1024)
-    }
-    
     override func stopTunnelWithReason(reason: NEProviderStopReason, completionHandler: () -> Void) {
         // Add code here to start the process of stopping the tunnel
-        self.log("stopTunnelWithReason")
-        session?.cancel()
+        NSLog("stopTunnelWithReason")
         completionHandler()
         super.stopTunnelWithReason(reason, completionHandler: completionHandler)
         // simply kill the extension process

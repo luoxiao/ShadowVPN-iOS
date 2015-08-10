@@ -33,6 +33,7 @@
 
 
 - (void)run {
+    NSLog(@"starting ChinaDNS");
     int argc = 0;
     char *(argv)[MAX_ARG];
     

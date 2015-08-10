@@ -50,7 +50,9 @@
 - (void)sendData:(NSData *)data {
     ssize_t r = sendto(fd, data.bytes, data.length, 0, addr_ip->ai_addr, addr_ip->ai_addrlen);
     if (r < 0) {
-        NSLog(@"%s", strerror(errno));
+        NSLog(@"sendto: %s", strerror(errno));
+    } else {
+        NSLog(@"sendto: %ld", r);
     }
 }
 
@@ -61,16 +63,17 @@
     }
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd <= 0) {
-        NSLog(@"%s", strerror(errno));
+        NSLog(@"socket: %s", strerror(errno));
     }
 }
 
 - (NSData *)recv {
     ssize_t r = recvfrom(fd, buf, sizeof(buf), 0, NULL, NULL);
     if (r > 0) {
+        NSLog(@"recvfrom: %ld", r);
         return [NSData dataWithBytes:buf length:r];
     } else {
-        NSLog(@"%s", strerror(errno));
+        NSLog(@"recvfrom: %s", strerror(errno));
     }
     return nil;
 }
