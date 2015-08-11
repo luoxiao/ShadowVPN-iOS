@@ -1,0 +1,3 @@
+[submodule "tun2socks-iOS"]
+	path = tun2socks-iOS
+	url = git@github.com:shadowsocks/tun2socks-iOS.git
