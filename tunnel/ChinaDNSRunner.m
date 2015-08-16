@@ -102,4 +102,11 @@ static BOOL _wifiStatus;
     return found;
 }
 
++ (NSData *)swapSourceAndDest:(NSData *)data {
+    NSMutableData *result = [data mutableCopy];
+    memcpy(result.mutableBytes + 12, data.bytes + 16, 4);
+    memcpy(result.mutableBytes + 16, data.bytes + 12, 4);
+    return result;
+}
+
 @end

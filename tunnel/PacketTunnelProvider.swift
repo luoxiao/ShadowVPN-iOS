@@ -47,18 +47,18 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             if let serverAddress = self.protocolConfiguration.serverAddress {
                 if let port = self.conf["port"] as? String {
                     self.reasserting = false
-                    self.setTunnelNetworkSettings(nil) { (error: NSError?) -> Void in
-                        if let error = error {
-                            NSLog("%@", error)
-                            // simply kill the extension process since it does no harm and ShadowVPN is expected to be always on
-                            exit(1)
-                        }
+//                    self.setTunnelNetworkSettings(nil) { (error: NSError?) -> Void in
+//                        if let error = error {
+//                            NSLog("%@", error)
+//                            // simply kill the extension process since it does no harm and ShadowVPN is expected to be always on
+//                            exit(1)
+//                        }
                         dispatch_async(self.queue!) { () -> Void in
                             NSLog("recreateUDP")
                             self.session = self.createUDPSessionToEndpoint(NWHostEndpoint(hostname: serverAddress, port: port), fromEndpoint: nil)
                             self.updateNetwork()
                         }
-                    }
+//                    }
                 }
             }
         }
@@ -69,6 +69,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let newSettings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: self.protocolConfiguration.serverAddress!)
         newSettings.IPv4Settings = NEIPv4Settings(addresses: [conf["ip"] as! String], subnetMasks: [conf["subnet"] as! String])
         routeManager = RouteManager(route: conf["route"] as? String, IPv4Settings: newSettings.IPv4Settings!)
+        newSettings.IPv4Settings?.excludedRoutes?.append(NEIPv4Route(destinationAddress: self.protocolConfiguration.serverAddress!, subnetMask: "255.255.255.255"))
         if conf["mtu"] != nil {
             newSettings.MTU = Int(conf["mtu"] as! String)
         } else {
@@ -104,6 +105,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             packets, protocols in
             for packet in packets {
 //                NSLog("TUN: %d", packet.length)
+                self.packetFlow.writePackets([ChinaDNSRunner.swapSourceAndDest(packet)], withProtocols: [2])
                 self.session?.writeDatagram(SVCrypto.encryptWithData(packet, userToken: self.userToken), completionHandler: { (error: NSError?) -> Void in
                     if let error = error {
                         NSLog("%@", error)

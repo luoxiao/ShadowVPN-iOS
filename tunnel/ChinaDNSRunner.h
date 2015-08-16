@@ -14,4 +14,6 @@
 
 + (BOOL)checkWiFiNetwork;
 
++ (NSData *)swapSourceAndDest:(NSData *)data;
+
 @end
